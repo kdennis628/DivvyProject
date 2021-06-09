@@ -1,0 +1,113 @@
+Table 1: Selects the number of trips based on the day of the week, filtered by user_type. 
+
+  SELECT day, user_type, COUNT(trip_id) as num_trips 
+  FROM
+    (SELECT date_part('dow',start_time)as day, user_type,trip_id
+	  FROM divvybikes_2016
+ UNION ALL
+	  SELECT date_part('dow',start_time) as day,user_type, trip_id
+	  FROM divvybikes_2017
+UNION ALL 
+	  SELECT date_part('dow',start_time) as day, user_type,trip_id
+	  FROM divvybikes_2018
+UNION ALL
+	  SELECT date_part('dow',start_time) as day, user_type,trip_id
+	  FROM divvybikes_2019) as trips
+GROUP BY day,user_type
+ORDER by 1 ASC;
+
+Table 2 : Returns the most frequently used Divvy Station based on the day of the week. Each table returns a user_type  based off whether it is a weekday (Monday-Friday) or the weekend (Saturday or Sunday)
+
+WEEKDAY SUBSCRIBER
+
+SELECT SUM(count) as trips,day,station_name
+FROM (SELECT count(a.trip_id) as count, date_part('dow',a.start_time) as day,b.name as station_name
+    FROM divvybikes_2019 as a 
+    LEFT JOIN divvy_stations as b ON b.id=a.start_station_id WHERE user_type = 'Subscriber' and date_part('dow',a.start_time) BETWEEN 1 and 5
+		GROUP BY date_part('dow',start_time), b.name) as results
+GROUP BY day,station_name
+ORDER  BY trips DESC
+LIMIT 15;
+
+WEEKEND SUBSCRIBER
+
+SELECT SUM(count) as trips,day,station_name
+FROM (SELECT count(a.trip_id) as count, date_part('dow',a.start_time) as day,b.name as station_name
+		FROM divvybikes_2019 as a 
+    LEFT JOIN divvy_stations as b ON b.id=a.start_station_id WHERE user_type = 'Subscriber' and (date_part('dow',a.start_time) = 0 or date_part('dow',a.start_time)=6)
+		GROUP BY date_part('dow',start_time), b.name) as results
+GROUP BY day,station_name
+ORDER  BY trips DESC
+LIMIT 15;
+
+WEEKEND CUSTOMER
+
+SELECT SUM(count) as trips,day,station_name
+FROM (SELECT count(a.trip_id) as count, date_part('dow',a.start_time) as day,b.name as station_name
+		FROM divvybikes_2019 as a 
+    LEFT JOIN divvy_stations as b ON b.id=a.start_station_id WHERE user_type = 'Customer' and (date_part('dow',a.start_time) = 0 or date_part('dow',a.start_time)=6)
+		GROUP BY date_part('dow',start_time), b.name) as results
+GROUP BY day,station_name
+ORDER  BY trips DESC
+LIMIT 15;
+
+WEEKDAY CUSTOMERS
+
+SELECT SUM(count) as trips,day,station_name
+FROM (SELECT count(a.trip_id) as count, date_part('dow',a.start_time) as day,b.name as station_name
+		FROM divvybikes_2019 as a 
+    LEFT JOIN divvy_stations as b ON b.id=a.start_station_id WHERE user_type ‘Customer' and date_part('dow',a.start_time) BETWEEN 1 and 5
+		GROUP BY date_part('dow',start_time), b.name) as results
+GROUP BY day,station_name
+ORDER  BY trips DESC
+LIMIT 15;
+
+TABLE 3: Returns the average time a user spent on a divvy bike, sorted by day. 
+
+SELECT AVG(trip_time) as trip_time,user_type,trip_day
+FROM (SELECT user_type,trip_id, date_part('dow',start_time) as trip_day, AGE(end_time,start_time) as trip_time
+	FROM divvybikes_2016
+	UNION ALL
+	SELECT user_type,trip_id, date_part('dow',start_time) as trip_day, AGE(end_time,start_time) as trip_time
+	FROM divvybikes_2017
+	UNION ALL
+	SELECT user_type,trip_id, date_part('dow',start_time) as trip_day, AGE(end_time,start_time) as trip_time
+	FROM divvybikes_2018
+	UNION ALL SELECT user_type,trip_id, date_part('dow',start_time) as trip_day, AGE(end_time,start_time) as trip_time
+	FROM divvybikes_2019) as results
+GROUP BY user_type,trip_day
+ORDER BY trip_day ASC;
+
+TABLE 4:  Returns the average distance traveled (by square miles) in a given day.
+
+SELECT avg(distance) as avg_trip_distance, user_type, trip_day
+FROM (SELECT a.user_type as user_type, date_part('dow',start_time) as trip_day, a.start_station_id,a.end_station_id,
+	s1.latitude as lat1, s1.longitude as lon1,
+	s2.latitude as lat2, s2.longitude as lon2,
+	calculate_distance(s1.latitude::float,s1.longitude::float,s2.latitude::float,s2.longitude::float,'sm') AS distance
+FROM divvybikes_2019 as a
+	JOIN divvy_stations as s1 ON a.start_station_id = s1.id
+	JOIN divvy_stations as s2 ON a.end_station_id = s2.id
+WHERE s1.latitude IS NOT NULL AND s2.latitude IS NOT NULL) as results
+GROUP BY trip_day, user_type;
+
+Table 5
+
+SELECT Sum(number_users),user_type
+FROM(
+SELECT user_type, count(distinct trip_id) as number_users
+FROM divvybikes_2016
+GROUP BY user_type
+UNION ALL
+SELECT user_type, count(distinct trip_id) as number_users
+FROM divvybikes_2017
+GROUP BY user_type
+UNION ALL
+SELECT user_type, count(distinct trip_id) as number_users
+FROM divvybikes_2018
+GROUP BY user_type
+UNION ALL
+SELECT user_type, count(distinct trip_id) as number_users
+FROM divvybikes_2019
+GROUP BY user_type) as results
+GROUP BY user_type;
